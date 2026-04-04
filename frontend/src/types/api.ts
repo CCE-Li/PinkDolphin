@@ -247,6 +247,12 @@ export interface MailAccountSyncResult {
   highest_uid: number | null
 }
 
+export interface MailAccountDeleteResult {
+  account_id: string
+  deleted_email_count: number
+  status: string
+}
+
 export interface AllowlistItem {
   id: string
   created_at: string

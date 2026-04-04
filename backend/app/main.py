@@ -1,6 +1,7 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 import asyncio
+import sys
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +14,9 @@ from app.db.migrations import run_startup_migrations
 from app.db.session import db_manager
 from app.services.auto_ingest_service import AutoIngestService
 from app.services.mailbox_listener_service import MailboxListenerService
+
+if sys.platform.startswith("win"):
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
 @asynccontextmanager

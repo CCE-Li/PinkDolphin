@@ -77,10 +77,10 @@ class EmailService:
         )
         return (await session.execute(stmt)).scalar_one_or_none()
 
-    async def delete_email(self, session: AsyncSession, email: Email) -> None:
+    async def delete_email(self, session: AsyncSession, email: Email, *, delete_remote: bool = True) -> None:
         deleted_from_mailbox = False
         mailbox_delete_skipped_reason: str | None = None
-        if email.mailbox_account_id and email.remote_uid and email.mail_account is not None:
+        if delete_remote and email.mailbox_account_id and email.remote_uid and email.mail_account is not None:
             try:
                 runtime = self.mail_account_service.to_runtime(email.mail_account)
                 client = await asyncio.to_thread(self.mail_account_service.imap_client.connect, runtime, readonly=False)
@@ -115,11 +115,13 @@ class EmailService:
                     code="imap_delete_failed",
                     message="Failed to delete email from mailbox via IMAP",
                 ) from exc
-        elif email.mailbox_account_id:
+        elif email.mailbox_account_id and delete_remote:
             if email.mail_account is None:
                 mailbox_delete_skipped_reason = "mail_account_not_loaded_or_missing"
             elif email.remote_uid is None:
                 mailbox_delete_skipped_reason = "remote_uid_missing"
+        elif email.mailbox_account_id and not delete_remote:
+            mailbox_delete_skipped_reason = "remote_delete_skipped"
 
         histories = list(
             (
@@ -157,6 +159,18 @@ class EmailService:
                 "mailbox_delete_skipped_reason": mailbox_delete_skipped_reason,
             },
         )
+
+    async def delete_emails_by_mail_account_id(self, session: AsyncSession, mail_account_id: str) -> int:
+        stmt = (
+            select(Email)
+            .where(Email.mailbox_account_id == mail_account_id)
+            .options(selectinload(Email.mail_account))
+            .order_by(Email.created_at.desc())
+        )
+        emails = list((await session.execute(stmt)).scalars().all())
+        for email in emails:
+            await self.delete_email(session, email, delete_remote=False)
+        return len(emails)
 
     def parse_request(self, payload: EmailAnalyzeRequest) -> ParsedEmailSchema:
         if payload.raw_email:

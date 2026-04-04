@@ -47,6 +47,16 @@ async def update_mail_account(
     return MailAccountRead.model_validate(updated)
 
 
+@router.delete("/{account_id}")
+async def delete_mail_account(
+    account_id: str,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, int | str]:
+    account = await mail_account_service.get_account(session, account_id)
+    deleted_email_count = await mail_account_service.delete_account(session, account)
+    return {"account_id": account_id, "deleted_email_count": deleted_email_count, "status": "deleted"}
+
+
 @router.post("/{account_id}/test", response_model=MailAccountTestResult)
 async def test_mail_account(
     account_id: str,

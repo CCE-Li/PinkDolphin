@@ -120,6 +120,9 @@
                       <div v-if="account.last_error" class="mt-2 text-red-600">最近错误：{{ account.last_error }}</div>
                     </div>
                     <div class="flex flex-wrap items-center justify-end gap-2">
+                      <button class="btn-danger" type="button" :disabled="removingId === account.id" @click="removeAccount(account)">
+                        {{ removingId === account.id ? '解绑中...' : '解绑邮箱' }}
+                      </button>
                       <button class="btn-secondary" type="button" @click="selectAccount(account)">查看 / 编辑</button>
                       <button class="btn-secondary" type="button" :disabled="testingId === account.id" @click="runTest(account)">
                         {{ testingId === account.id ? '测试中...' : '测试连接' }}
@@ -136,23 +139,6 @@
         </div>
 
         <div class="space-y-6">
-          <div ref="formPanelRef" class="panel">
-            <div class="panel-header">
-              <h2 class="text-xl font-semibold tracking-[-0.03em] text-slate-950">{{ editingAccount ? '编辑监听邮箱' : '新增监听邮箱' }}</h2>
-            </div>
-            <div class="panel-body">
-              <MailAccountForm
-                :initial-value="editingAccount"
-                :submit-label="editingAccount ? '更新监听配置' : '创建监听配置'"
-                :disabled="submitting"
-                @submit="saveAccount"
-                @cancel="resetForm"
-              />
-              <p v-if="formMessage" class="mt-4 text-sm text-sky-600">{{ formMessage }}</p>
-              <p v-if="formError" class="mt-4 text-sm text-red-600">{{ formError }}</p>
-            </div>
-          </div>
-
           <div class="panel">
             <div class="panel-header">
               <h2 class="text-xl font-semibold tracking-[-0.03em] text-slate-950">连接状态面板</h2>
@@ -210,6 +196,29 @@
         </div>
       </div>
     </template>
+
+    <div
+      v-if="isFormPanelOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4 py-6 backdrop-blur-sm"
+      @click.self="resetForm"
+    >
+      <div ref="formPanelRef" class="panel max-h-[90vh] w-full max-w-4xl overflow-y-auto">
+        <div class="panel-header">
+          <h2 class="text-xl font-semibold tracking-[-0.03em] text-slate-950">{{ editingAccount ? '编辑监听邮箱' : '新增监听邮箱' }}</h2>
+        </div>
+        <div class="panel-body">
+          <MailAccountForm
+            :initial-value="editingAccount"
+            :submit-label="editingAccount ? '更新监听配置' : '创建监听配置'"
+            :disabled="submitting"
+            @submit="saveAccount"
+            @cancel="resetForm"
+          />
+          <p v-if="formMessage" class="mt-4 text-sm text-sky-600">{{ formMessage }}</p>
+          <p v-if="formError" class="mt-4 text-sm text-red-600">{{ formError }}</p>
+        </div>
+      </div>
+    </div>
   </section>
 </template>
 
@@ -239,12 +248,14 @@ const selectedAccount = ref<MailAccountItem | null>(null)
 const submitting = ref(false)
 const testingId = ref<string | null>(null)
 const syncingId = ref<string | null>(null)
+const removingId = ref<string | null>(null)
 const formMessage = ref<string | null>(null)
 const formError = ref<string | null>(null)
 const testResult = ref<MailAccountTestResult | null>(null)
 const syncResult = ref<MailAccountSyncResult | null>(null)
 const formPanelRef = ref<HTMLElement | null>(null)
 const showUidDetails = ref(false)
+const isFormPanelOpen = ref(false)
 let refreshTimer: number | null = null
 
 const listeningCount = computed(() => accounts.value.filter((item) => item.status === 'listening').length)
@@ -291,6 +302,10 @@ async function load(options: { silent?: boolean } = {}): Promise<void> {
     if (editingAccount.value) {
       editingAccount.value = accounts.value.find((item) => item.id === editingAccount.value?.id) ?? null
     }
+    if (!accounts.value.length) {
+      selectedAccount.value = null
+      editingAccount.value = null
+    }
   } catch (err) {
     if (!options.silent) {
       error.value = err instanceof Error ? err.message : 'Failed to load mail accounts'
@@ -303,6 +318,7 @@ async function load(options: { silent?: boolean } = {}): Promise<void> {
 }
 
 async function openCreate(): Promise<void> {
+  isFormPanelOpen.value = true
   editingAccount.value = null
   selectedAccount.value = null
   formMessage.value = null
@@ -310,20 +326,22 @@ async function openCreate(): Promise<void> {
   testResult.value = null
   syncResult.value = null
   await nextTick()
-  formPanelRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  formPanelRef.value?.focus?.()
 }
 
 async function selectAccount(account: MailAccountItem): Promise<void> {
+  isFormPanelOpen.value = true
   selectedAccount.value = account
   editingAccount.value = account
   formMessage.value = null
   formError.value = null
   await nextTick()
-  formPanelRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  formPanelRef.value?.focus?.()
 }
 
 function resetForm(): void {
   editingAccount.value = null
+  isFormPanelOpen.value = false
 }
 
 async function saveAccount(payload: MailAccountPayload): Promise<void> {
@@ -341,6 +359,7 @@ async function saveAccount(payload: MailAccountPayload): Promise<void> {
       formMessage.value = '监听邮箱已创建'
     }
     editingAccount.value = null
+    isFormPanelOpen.value = false
     await load()
   } catch (err) {
     formError.value = err instanceof Error ? err.message : 'Save failed'
@@ -376,6 +395,33 @@ async function runSync(account: MailAccountItem): Promise<void> {
     formError.value = err instanceof Error ? err.message : 'Sync failed'
   } finally {
     syncingId.value = null
+  }
+}
+
+async function removeAccount(account: MailAccountItem): Promise<void> {
+  const confirmed = window.confirm(`解绑 ${account.display_name || account.email_address} 后，会删除该邮箱配置和该邮箱已同步的所有邮件，继续吗？`)
+  if (!confirmed) return
+
+  removingId.value = account.id
+  formMessage.value = null
+  formError.value = null
+  testResult.value = null
+  syncResult.value = null
+  try {
+    const result = await mailAccountsApi.remove(account.id)
+    if (selectedAccount.value?.id === account.id) {
+      selectedAccount.value = null
+    }
+    if (editingAccount.value?.id === account.id) {
+      editingAccount.value = null
+    }
+    isFormPanelOpen.value = false
+    formMessage.value = `监听邮箱已解绑，并删除 ${result.deleted_email_count} 封关联邮件`
+    await load()
+  } catch (err) {
+    formError.value = err instanceof Error ? err.message : 'Delete failed'
+  } finally {
+    removingId.value = null
   }
 }
 

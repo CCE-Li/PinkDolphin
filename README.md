@@ -46,14 +46,6 @@ PinkDolphin/
 
 ## 核心能力
 
-### 邮件接入
-
-- 上传 `.eml` 文件分析
-- 提交原始邮件或结构化 JSON 分析
-- 绑定 IMAP 邮箱并长期监听
-- 手动触发一次立即同步
-- 本地目录轮询导入 `.eml`
-
 ### 分析能力
 
 - `header_auth`：解析 `SPF / DKIM / DMARC`
@@ -63,16 +55,6 @@ PinkDolphin/
 - `behavior`：联系人历史与行为信号
 - `llm`：模型语义分析
 
-### 管理能力
-
-- 邮件列表、详情、重分析、处置
-- 事件列表与风险摘要
-- 规则管理
-- 审计日志
-- 问题日志
-- 隐私白名单
-- 配置管理
-- 管理员账号密码修改
 
 ## 当前分析链说明
 
@@ -194,42 +176,8 @@ env_file:
 docker compose up -d postgres redis
 ```
 
-### 5. 导入现有数据
 
-如果你已经有本地数据，先从本地导出数据库，再导入服务器容器。
-
-本地导出示例：
-
-```bash
-pg_dump -h <db_host> -p 5432 -U <db_user> -d <db_name> -Fc -f pinkdolphin.dump
-```
-
-复制到服务器后导入：
-
-```bash
-docker cp pinkdolphin.dump phishing_postgres:/tmp/pinkdolphin.dump
-docker exec -it phishing_postgres pg_restore -U phishing -d phishing_mail --clean --if-exists /tmp/pinkdolphin.dump
-```
-
-### 6. Alembic 基线处理
-
-当前项目已经将历史迁移合并为一个 baseline：
-
-- Revision: `20260404_0010`
-
-如果你恢复的是一个已经存在数据的旧库，执行：
-
-```bash
-docker compose run --rm backend alembic stamp 20260404_0010
-```
-
-如果你部署的是空库，执行：
-
-```bash
-docker compose run --rm backend alembic upgrade head
-```
-
-### 7. 启动后端与 Worker
+### 5. 启动后端与 Worker
 
 ```bash
 docker compose up -d backend worker
@@ -349,22 +297,4 @@ server {
 - 如果使用真实 LLM、URL、附件扫描能力，相关 API Key 只放在服务器 `.env`
 - 生产环境不要把 `postgres` 和 `redis` 直接暴露到公网
 - 建议为 PostgreSQL 数据目录挂载持久化卷
-
-## 当前迁移说明
-
-当前 Alembic 已压缩为单一 baseline：
-
-- [20260404_0010_baseline.py](C:/Users/wkx32/Desktop/JSG/PinkDolphin/backend/alembic/versions/20260404_0010_baseline.py)
-
-对现有数据库：
-
-```bash
-alembic stamp 20260404_0010
-```
-
-对空数据库：
-
-```bash
-alembic upgrade head
-```
 

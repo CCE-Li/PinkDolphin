@@ -4,13 +4,6 @@ function resolveApiBaseUrl(): string {
   const configured = import.meta.env.VITE_API_BASE_URL?.trim()
   if (configured) return configured
 
-  if (typeof window === 'undefined') return ''
-
-  const { port } = window.location
-  if (port === '5173' || port === '4173') {
-    return 'http://127.0.0.1:8001'
-  }
-
   return ''
 }
 

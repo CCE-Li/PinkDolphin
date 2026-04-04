@@ -46,8 +46,8 @@ const navItems: NavItem[] = [
   { label: '我的邮件', path: '/emails', hint: '邮件检索、筛选与分析' },
   { label: '规则管理', path: '/rules', hint: '检测规则与动作策略' },
   { label: '处置记录', path: '/actions', hint: '系统动作记录' },
-  { label: '隐私白名单', path: '/allowlists', hint: '白名单与 URL/附件/LLM 隐私开关' },
-  { label: '配置管理', path: '/config-management', hint: '查看并修改 backend/.env' },
+  { label: '隐私白名单', path: '/allowlists', hint: '白名单与隐私开关' },
+  { label: '配置管理', path: '/config-management', hint: '查看并修改配置' },
   { label: '问题日志', path: '/issue-logs', hint: '查看日志' },
 ]
 </script>

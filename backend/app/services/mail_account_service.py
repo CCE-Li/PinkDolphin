@@ -4,11 +4,13 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.exceptions import AppException
 from app.integrations.imap import IMAPClient
+from app.models.email import Email
 from app.models.mailbox_sync_cursor import MailboxSyncCursor
 from app.models.enums import IssueSeverity, MailboxProvider, MailboxStatus
 from app.models.mail_account import MailAccount
@@ -49,6 +51,7 @@ class MailAccountService:
         }
 
     async def list_accounts(self, session: AsyncSession) -> list[MailAccount]:
+        await self.cleanup_missing_mailbox_emails(session)
         result = await session.execute(select(MailAccount).order_by(MailAccount.created_at.desc()))
         return list(result.scalars().all())
 
@@ -73,6 +76,7 @@ class MailAccountService:
         )
         session.add(account)
         await session.flush()
+        await self.initialize_cursor_from_current_mailbox(session, account)
         return account
 
     async def update_account(self, session: AsyncSession, account: MailAccount, payload: MailAccountUpdate) -> MailAccount:
@@ -101,6 +105,8 @@ class MailAccountService:
         if not account.is_active:
             account.last_error = None
         await session.flush()
+        if self._requires_cursor_reset(changes):
+            await self.initialize_cursor_from_current_mailbox(session, account)
         return account
 
     async def test_connection(self, session: AsyncSession, account: MailAccount) -> MailAccountTestResult:
@@ -232,6 +238,80 @@ class MailAccountService:
             account.status = MailboxStatus.LISTENING
         await session.flush()
 
+    async def initialize_cursor_from_current_mailbox(self, session: AsyncSession, account: MailAccount) -> int | None:
+        highest_uid: int | None = None
+        runtime = self.to_runtime(account)
+        try:
+            highest_uid = await self._test_runtime_account(runtime)
+            cursor = await self.get_or_create_cursor(session, account.id, account.mailbox_folder)
+            cursor.last_seen_uid = highest_uid
+            cursor.last_synced_uid = highest_uid
+            cursor.last_sync_at = datetime.now(timezone.utc) if highest_uid is not None else cursor.last_sync_at
+            account.last_seen_uid = highest_uid
+            account.last_synced_uid = highest_uid
+            account.last_sync_at = cursor.last_sync_at
+            account.last_error = None
+            if account.is_active:
+                account.status = MailboxStatus.IDLE
+            await session.flush()
+        except Exception as exc:
+            account.last_error = str(exc)
+            account.status = MailboxStatus.ERROR
+            await self.issue_log_service.log(
+                session,
+                component="mail_account:initialize_cursor",
+                severity=IssueSeverity.ERROR,
+                message="Failed to initialize mailbox cursor from current UID",
+                details={
+                    "account_id": account.id,
+                    "email_address": account.email_address,
+                    "provider": account.provider.value,
+                    "error": str(exc),
+                },
+            )
+            await session.flush()
+            raise
+        return highest_uid
+
+    async def delete_account(self, session: AsyncSession, account: MailAccount) -> int:
+        from app.services.email_service import EmailService
+
+        await session.refresh(account, attribute_names=["emails"])
+        deleted_count = await EmailService().delete_emails_by_mail_account_id(session, account.id)
+        await session.delete(account)
+        await session.flush()
+        await self.issue_log_service.log(
+            session,
+            component="mail_account:delete",
+            severity=IssueSeverity.INFO,
+            message="Mail account deleted with local mailbox emails",
+            details={
+                "account_id": account.id,
+                "email_address": account.email_address,
+                "deleted_email_count": deleted_count,
+            },
+        )
+        return deleted_count
+
+    async def cleanup_missing_mailbox_emails(self, session: AsyncSession) -> int:
+        from app.services.email_service import EmailService
+
+        stmt = (
+            select(Email)
+            .where(Email.mailbox_account_id.is_not(None))
+            .options(selectinload(Email.mail_account))
+            .order_by(Email.created_at.desc())
+        )
+        emails = list((await session.execute(stmt)).scalars().all())
+        deleted_count = 0
+        email_service = EmailService()
+        for email in emails:
+            if email.mail_account is not None:
+                continue
+            await email_service.delete_email(session, email, delete_remote=False)
+            deleted_count += 1
+        return deleted_count
+
     async def _ensure_email_not_exists(self, session: AsyncSession, email_address: str) -> None:
         stmt = select(MailAccount.id).where(MailAccount.email_address == email_address.lower())
         existing = (await session.execute(stmt)).scalar_one_or_none()
@@ -288,3 +368,17 @@ class MailAccountService:
             "is_active": bool(payload.get("is_active", True)),
             "listen_interval_seconds": listen_interval_seconds,
         }
+
+    @staticmethod
+    def _requires_cursor_reset(changes: dict) -> bool:
+        reset_fields = {
+            "email_address",
+            "provider",
+            "imap_host",
+            "imap_port",
+            "imap_username",
+            "imap_password",
+            "mailbox_folder",
+            "use_ssl",
+        }
+        return any(field in changes for field in reset_fields)
