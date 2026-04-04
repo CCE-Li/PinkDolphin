@@ -1,8 +1,11 @@
 import asyncio
 
+from app.core.config import get_settings
 from app.services.auto_ingest_service import AutoIngestService
 from app.services.mailbox_sync_service import MailboxSyncService
 from app.tasks.celery_app import celery_app
+
+settings = get_settings()
 
 
 @celery_app.task(name="emails.reanalyze")
@@ -33,7 +36,11 @@ def sync_mail_account_task(account_id: str) -> dict[str, int | str | None]:
     }
 
 
-@celery_app.task(name="mailboxes.analyze_raw_email")
+@celery_app.task(
+    name="mailboxes.analyze_raw_email",
+    queue=settings.mailbox_analysis_queue,
+    rate_limit=settings.mailbox_analysis_rate_limit,
+)
 def analyze_mailbox_email_task(
     mail_account_id: str,
     uid: int,

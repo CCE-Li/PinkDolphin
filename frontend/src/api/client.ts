@@ -1,14 +1,8 @@
 import axios from 'axios'
-
-function resolveApiBaseUrl(): string {
-  const configured = import.meta.env.VITE_API_BASE_URL?.trim()
-  if (configured) return configured
-
-  return ''
-}
+import { getApiBaseUrl } from '@/api/baseUrl'
 
 const apiClient = axios.create({
-  baseURL: resolveApiBaseUrl(),
+  baseURL: getApiBaseUrl(),
   timeout: 10000,
 })
 

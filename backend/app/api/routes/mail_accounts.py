@@ -73,5 +73,5 @@ async def sync_mail_account(
     session: AsyncSession = Depends(get_db_session),
 ) -> MailAccountSyncResult:
     await mail_account_service.get_account(session, account_id)
-    state = await mailbox_sync_service.sync_account_once(account_id, process_inline=True)
+    state = await mailbox_sync_service.sync_account_once(account_id)
     return MailAccountSyncResult(account_id=account_id, queued=state.queued, synced=state.synced, highest_uid=state.highest_uid)

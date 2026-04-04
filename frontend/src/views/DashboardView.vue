@@ -246,7 +246,6 @@ const riskDistribution = computed(() => {
         percentText: `${Math.round(percent * 100)}%`,
       }
     })
-    .filter((item) => item.count > 0 || item.key === 'unknown')
 })
 
 const riskChartSlices = computed(() => {
@@ -269,27 +268,39 @@ const providerDistribution = computed(() => {
   const counts = new Map<string, number>([
     ['QQ', 0],
     ['Gmail', 0],
+    ['Outlook', 0],
+    ['163', 0],
     ['其他', 0],
   ])
 
   for (const account of mailAccounts.value) {
-    const key = account.provider === 'qq' ? 'QQ' : account.provider === 'gmail' ? 'Gmail' : '其他'
+    const key =
+      account.provider === 'qq'
+        ? 'QQ'
+        : account.provider === 'gmail'
+          ? 'Gmail'
+          : account.provider === 'outlook'
+            ? 'Outlook'
+            : account.provider === '163'
+              ? '163'
+              : '其他'
     counts.set(key, (counts.get(key) ?? 0) + 1)
   }
 
-  return ['QQ', 'Gmail', '其他']
+  return ['QQ', 'Gmail', 'Outlook', '163', '其他']
     .map((name) => ({ name, value: counts.get(name) ?? 0 }))
-    .filter((item) => item.value > 0)
 })
 
 const providerSummaryRows = computed(() => {
   const colors: Record<string, string> = {
     QQ: '#7dd3fc',
     Gmail: '#38bdf8',
+    Outlook: '#60a5fa',
+    '163': '#93c5fd',
     其他: '#94a3b8',
   }
   const total = mailAccounts.value.length || 1
-  return ['QQ', 'Gmail', '其他']
+  return ['QQ', 'Gmail', 'Outlook', '163', '其他']
     .map((name) => ({ name, value: providerDistribution.value.find((item) => item.name === name)?.value ?? 0 }))
     .map((item) => ({
       label: item.name,

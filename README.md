@@ -93,10 +93,17 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ```bash
 cd backend
-uv run celery -A app.tasks.celery_app.celery_app worker --loglevel=info
+uv run celery -A app.tasks.celery_app.celery_app worker --loglevel=info -Q default
 ```
 
-### 4. 启动前端
+### 4. 启动邮件分析限速 Worker
+
+```bash
+cd backend
+uv run celery -A app.tasks.celery_app.celery_app worker --loglevel=info --concurrency=1 -Q mailbox_analysis
+```
+
+### 5. 启动前端
 
 ```bash
 cd frontend
@@ -180,7 +187,7 @@ docker compose up -d postgres redis
 ### 5. 启动后端与 Worker
 
 ```bash
-docker compose up -d backend worker
+docker compose up -d backend worker worker_mailbox_analysis
 ```
 
 查看日志：
@@ -188,6 +195,7 @@ docker compose up -d backend worker
 ```bash
 docker compose logs -f backend
 docker compose logs -f worker
+docker compose logs -f worker_mailbox_analysis
 ```
 
 默认后端地址：
@@ -262,7 +270,9 @@ server {
 
 - 每个监听邮箱维护独立同步状态
 - 同步维度细化到“邮箱账号 + 文件夹”
-- 手动“立即同步”会尽量同步处理当前新邮件
+- 监听发现的新邮件会先进入 Celery 队列
+- 手动“立即同步”也只负责把当前新邮件加入队列
+- 邮件分析支持单独队列、串行消费和速率限制，默认 `1/m`
 - 邮件去重按 `mailbox_account_id + remote_folder + remote_uid`
 
 ### 为什么这么做
@@ -297,4 +307,3 @@ server {
 - 如果使用真实 LLM、URL、附件扫描能力，相关 API Key 只放在服务器 `.env`
 - 生产环境不要把 `postgres` 和 `redis` 直接暴露到公网
 - 建议为 PostgreSQL 数据目录挂载持久化卷
-

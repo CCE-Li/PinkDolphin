@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     celery_broker_url: str = "redis://localhost:6379/1"
     celery_result_backend: str = "redis://localhost:6379/2"
+    celery_default_queue: str = "default"
+    mailbox_analysis_queue: str = "mailbox_analysis"
+    mailbox_analysis_rate_limit: str = "1/m"
     max_upload_size_mb: int = 10
     log_level: str = "INFO"
     auto_migrate_on_startup: bool = True

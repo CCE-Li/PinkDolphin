@@ -15,4 +15,9 @@ celery_app.conf.update(
     result_serializer="json",
     accept_content=["json"],
     task_always_eager=False,
+    task_default_queue=settings.celery_default_queue,
+    worker_prefetch_multiplier=1,
+    task_routes={
+        "mailboxes.analyze_raw_email": {"queue": settings.mailbox_analysis_queue},
+    },
 )
