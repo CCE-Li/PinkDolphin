@@ -1,8 +1,8 @@
-from sqlalchemy import Enum, Index, JSON, String, Text
+from sqlalchemy import Index, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
-from app.models.enums import IssueSeverity
+from app.models.enums import IssueSeverity, sql_enum
 from app.models.mixins import TimestampMixin, UUIDPrimaryKeyMixin
 
 
@@ -15,6 +15,6 @@ class IssueLog(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
 
     component: Mapped[str] = mapped_column(String(64), nullable=False)
-    severity: Mapped[IssueSeverity] = mapped_column(Enum(IssueSeverity, native_enum=False), nullable=False)
+    severity: Mapped[IssueSeverity] = mapped_column(sql_enum(IssueSeverity), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     details: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)

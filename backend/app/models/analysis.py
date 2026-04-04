@@ -1,8 +1,8 @@
-from sqlalchemy import Enum, ForeignKey, Index, Integer, JSON, String, Text
+from sqlalchemy import ForeignKey, Index, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-from app.models.enums import AnalyzerExecutionStatus, RecommendedAction, RiskLevel, SeverityLevel
+from app.models.enums import AnalyzerExecutionStatus, RecommendedAction, RiskLevel, SeverityLevel, sql_enum
 from app.models.mixins import TimestampMixin, UUIDPrimaryKeyMixin
 
 
@@ -15,9 +15,9 @@ class AnalysisResult(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     email_id: Mapped[str] = mapped_column(ForeignKey("emails.id", ondelete="CASCADE"), nullable=False)
     total_score: Mapped[int] = mapped_column(Integer, nullable=False)
-    risk_level: Mapped[RiskLevel] = mapped_column(Enum(RiskLevel, native_enum=False), nullable=False)
+    risk_level: Mapped[RiskLevel] = mapped_column(sql_enum(RiskLevel), nullable=False)
     recommended_action: Mapped[RecommendedAction] = mapped_column(
-        Enum(RecommendedAction, native_enum=False),
+        sql_enum(RecommendedAction),
         nullable=False,
     )
     summary: Mapped[str] = mapped_column(Text, nullable=False)
@@ -45,14 +45,13 @@ class AnalyzerResult(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     analyzer_name: Mapped[str] = mapped_column(String(128), nullable=False)
     enabled: Mapped[bool] = mapped_column(default=True, nullable=False)
     status: Mapped[AnalyzerExecutionStatus] = mapped_column(
-        Enum(AnalyzerExecutionStatus, native_enum=False),
+        sql_enum(AnalyzerExecutionStatus),
         nullable=False,
     )
     score: Mapped[int] = mapped_column(Integer, nullable=False)
-    severity: Mapped[SeverityLevel] = mapped_column(Enum(SeverityLevel, native_enum=False), nullable=False)
+    severity: Mapped[SeverityLevel] = mapped_column(sql_enum(SeverityLevel), nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     signals: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     evidence: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
 
     analysis_result: Mapped["AnalysisResult"] = relationship(back_populates="analyzer_results")
-

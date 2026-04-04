@@ -32,6 +32,8 @@ services:
   backend:
     build:
       context: ./backend
+      args:
+        UV_INDEX_URL: https://mirrors.ustc.edu.cn/pypi/simple
     container_name: phishing_backend
     env_file:
       - ./backend/.env.example
@@ -42,7 +44,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
     ports:
-      - "8000:8000"
+      - "12345:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -55,6 +57,8 @@ services:
   worker:
     build:
       context: ./backend
+      args:
+        UV_INDEX_URL: https://mirrors.ustc.edu.cn/pypi/simple
     container_name: phishing_worker
     env_file:
       - ./backend/.env.example
@@ -76,6 +80,8 @@ services:
   worker_mailbox_analysis:
     build:
       context: ./backend
+      args:
+        UV_INDEX_URL: https://mirrors.ustc.edu.cn/pypi/simple
     container_name: phishing_worker_mailbox_analysis
     env_file:
       - ./backend/.env.example

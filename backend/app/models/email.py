@@ -1,10 +1,10 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Enum, ForeignKey, Index, Integer, JSON, String, Text, UniqueConstraint
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-from app.models.enums import EmailSource, EmailStatus
+from app.models.enums import EmailSource, EmailStatus, sql_enum
 from app.models.mixins import TimestampMixin, UUIDPrimaryKeyMixin
 
 
@@ -25,13 +25,13 @@ class Email(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     raw_headers: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     body_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     body_html: Mapped[str | None] = mapped_column(Text, nullable=True)
-    source: Mapped[EmailSource] = mapped_column(Enum(EmailSource, native_enum=False), nullable=False)
+    source: Mapped[EmailSource] = mapped_column(sql_enum(EmailSource), nullable=False)
     raw_email: Mapped[str | None] = mapped_column(Text, nullable=True)
     mailbox_account_id: Mapped[str | None] = mapped_column(ForeignKey("mail_accounts.id", ondelete="SET NULL"), nullable=True)
     remote_uid: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     remote_folder: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[EmailStatus] = mapped_column(
-        Enum(EmailStatus, native_enum=False),
+        sql_enum(EmailStatus),
         default=EmailStatus.RECEIVED,
         nullable=False,
     )

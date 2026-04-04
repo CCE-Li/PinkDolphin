@@ -1,5 +1,7 @@
 from enum import StrEnum
 
+from sqlalchemy import Enum
+
 
 class AddressRole(StrEnum):
     FROM = "from"
@@ -114,3 +116,12 @@ class IssueSeverity(StrEnum):
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
+
+
+def sql_enum(enum_cls: type[StrEnum]) -> Enum:
+    return Enum(
+        enum_cls,
+        native_enum=False,
+        values_callable=lambda enum_type: [member.name for member in enum_type],
+        length=max(len(member.name) for member in enum_cls),
+    )
