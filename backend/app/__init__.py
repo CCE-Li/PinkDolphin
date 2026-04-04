@@ -1,0 +1,2 @@
+"""Phishing mail backend package."""
+

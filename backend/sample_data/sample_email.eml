@@ -1,0 +1,20 @@
+From: "Accounts Team" <accounts@secure-billing.top>
+To: employee@example.com
+Subject: Urgent invoice verification required
+Date: Fri, 03 Apr 2026 09:30:00 +0000
+Message-ID: <sample-001@example.com>
+Authentication-Results: mx.example; spf=fail smtp.mailfrom=secure-billing.top; dkim=fail; dmarc=fail
+Content-Type: multipart/alternative; boundary="boundary123"
+
+--boundary123
+Content-Type: text/plain; charset="utf-8"
+
+Please verify your invoice immediately and login at https://secure-billing.top/login to avoid service interruption.
+
+--boundary123
+Content-Type: text/html; charset="utf-8"
+
+<html><body><p>Please verify your invoice immediately.</p><a href="https://secure-billing.top/login">Verify</a></body></html>
+
+--boundary123--
+

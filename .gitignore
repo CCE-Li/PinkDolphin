@@ -1,0 +1,61 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment files
+.env
+*.env
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.python-version
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.eggs/
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Backend build / runtime
+backend/.pytest_cache/
+backend/.ruff_cache/
+backend/alembic/__pycache__/
+backend/alembic/versions/__pycache__/
+
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.npm/
+.pnpm-store/
+
+# Logs / temp
+*.log
+logs/
+tmp/
+temp/
+
+# Database dumps / backups
+*.dump
+*.sql
+*.bak
+*.backup
+
+# Docker local overrides
+docker-compose.override.yml
