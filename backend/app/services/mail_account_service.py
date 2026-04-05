@@ -549,6 +549,7 @@ class MailAccountService:
                     "mailbox_folder": (payload.mailbox_folder or "INBOX").strip() or "INBOX",
                     "is_active": payload.is_active,
                     "listen_interval_seconds": payload.listen_interval_seconds,
+                    "listener_mode": payload.listener_mode,
                     "created_at": datetime.now(timezone.utc).isoformat(),
                 }
             )
@@ -606,6 +607,7 @@ class MailAccountService:
                 "use_ssl",
                 "is_active",
                 "listen_interval_seconds",
+                "listener_mode",
             ):
                 setattr(target, field, normalized[field])
             target.status = MailboxStatus.IDLE if target.is_active else MailboxStatus.DISABLED

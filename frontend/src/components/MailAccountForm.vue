@@ -46,7 +46,7 @@
         </div>
         <div class="flex flex-wrap gap-2">
           <button class="btn-secondary" type="button" @click="$emit('open-config')">前往配置管理</button>
-          <button class="btn-primary" type="button" :disabled="disabled" @click="$emit('connect-outlook')">连接 Outlook (Graph)</button>
+          <button class="btn-primary" type="button" :disabled="disabled" @click="connectOutlook">连接 Outlook (Graph)</button>
         </div>
       </div>
     </div>
@@ -135,13 +135,13 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import { mailAccountsApi } from '@/api/modules/mailAccounts'
-import type { MailAccountItem, MailAccountPayload, MailProviderPresetItem } from '@/types/api'
+import type { MailAccountItem, MailAccountPayload, MailProviderPresetItem, OutlookOAuthStartPayload } from '@/types/api'
 
 const emit = defineEmits<{
   submit: [payload: MailAccountPayload]
   cancel: []
   'open-config': []
-  'connect-outlook': []
+  'connect-outlook': [payload: OutlookOAuthStartPayload]
 }>()
 
 const props = withDefaults(
@@ -278,38 +278,47 @@ watch(
   },
 )
 
+function resetForm(value: MailAccountItem | null | undefined): void {
+  if (!value) {
+    form.owner_email = ''
+    form.email_address = ''
+    form.display_name = ''
+    form.provider = 'qq'
+    form.imap_host = fallbackProviderPresets[0].imap_host
+    form.imap_port = fallbackProviderPresets[0].imap_port
+    form.imap_username = ''
+    form.imap_password = ''
+    form.mailbox_folder = 'INBOX'
+    form.use_ssl = true
+    form.is_active = true
+    form.listen_interval_seconds = 5
+    form.listener_mode = 'polling'
+    return
+  }
+  form.owner_email = value.owner_email
+  form.email_address = value.email_address
+  form.display_name = value.display_name ?? ''
+  form.provider = value.provider
+  form.imap_host = value.imap_host
+  form.imap_port = value.imap_port
+  form.imap_username = value.imap_username
+  form.imap_password = ''
+  form.mailbox_folder = value.mailbox_folder
+  form.use_ssl = value.use_ssl
+  form.is_active = value.is_active
+  form.listen_interval_seconds = value.listen_interval_seconds
+  form.listener_mode = value.listener_mode ?? 'polling'
+}
+
 watch(
-  () => props.initialValue,
-  (value) => {
+  () => props.initialValue?.id ?? null,
+  () => {
+    const value = props.initialValue
     if (!value) {
-      form.owner_email = ''
-      form.email_address = ''
-      form.display_name = ''
-      form.provider = 'qq'
-      form.imap_host = fallbackProviderPresets[0].imap_host
-      form.imap_port = fallbackProviderPresets[0].imap_port
-      form.imap_username = ''
-      form.imap_password = ''
-      form.mailbox_folder = 'INBOX'
-      form.use_ssl = true
-      form.is_active = true
-      form.listen_interval_seconds = 5
-      form.listener_mode = 'polling'
+      resetForm(null)
       return
     }
-    form.owner_email = value.owner_email
-    form.email_address = value.email_address
-    form.display_name = value.display_name ?? ''
-    form.provider = value.provider
-    form.imap_host = value.imap_host
-    form.imap_port = value.imap_port
-    form.imap_username = value.imap_username
-    form.imap_password = ''
-    form.mailbox_folder = value.mailbox_folder
-    form.use_ssl = value.use_ssl
-    form.is_active = value.is_active
-    form.listen_interval_seconds = value.listen_interval_seconds
-    form.listener_mode = value.listener_mode ?? 'polling'
+    resetForm(value)
   },
   { immediate: true },
 )
@@ -324,7 +333,7 @@ onMounted(async () => {
 
 function submit(): void {
   if (form.provider === 'outlook') {
-    emit('connect-outlook')
+    connectOutlook()
     return
   }
   emit('submit', {
@@ -338,6 +347,17 @@ function submit(): void {
     imap_password: form.imap_password,
     mailbox_folder: form.mailbox_folder.trim() || 'INBOX',
     use_ssl: form.use_ssl,
+    is_active: form.is_active,
+    listen_interval_seconds: form.listen_interval_seconds,
+    listener_mode: form.listener_mode,
+  })
+}
+
+function connectOutlook(): void {
+  emit('connect-outlook', {
+    owner_email: form.owner_email.trim() || null,
+    display_name: form.display_name.trim() || null,
+    mailbox_folder: form.mailbox_folder.trim() || 'INBOX',
     is_active: form.is_active,
     listen_interval_seconds: form.listen_interval_seconds,
     listener_mode: form.listener_mode,

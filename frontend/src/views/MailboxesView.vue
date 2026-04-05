@@ -116,7 +116,7 @@
                       class="btn-secondary"
                       type="button"
                       :disabled="outlookConnecting"
-                      @click="connectOutlook"
+                      @click="reconnectOutlook"
                     >
                       {{ outlookConnecting ? '跳转中...' : '重新授权 Outlook' }}
                     </button>
@@ -145,7 +145,7 @@
                 <div v-if="!foldersCollapsed" class="panel-body">
                   <div class="space-y-3">
                     <div
-                      v-for="folder in selectedAccount.folders"
+                      v-for="folder in selectedFolders"
                       :key="folder.name"
                       class="rounded-[24px] border px-4 py-4"
                       :class="folder.is_primary ? 'border-sky-200 bg-sky-50/60' : 'border-slate-200 bg-white'"
@@ -169,7 +169,7 @@
                   </div>
                 </div>
                 <div v-else class="px-6 pb-6 text-sm text-slate-500">
-                  已折叠，点击右上角“展开”查看 {{ selectedAccount.folders.length }} 个文件夹状态。
+                  已折叠，点击右上角“展开”查看 {{ selectedFolders.length }} 个文件夹状态。
                 </div>
               </div>
 
@@ -261,6 +261,7 @@ import type {
   MailAccountPayload,
   MailAccountSyncResult,
   MailAccountTestResult,
+  OutlookOAuthStartPayload,
 } from '@/types/api'
 import { formatDateTime, formatNumber } from '@/utils/format'
 
@@ -288,6 +289,7 @@ let refreshTimer: number | null = null
 const listeningCount = computed(() => accounts.value.filter((item) => item.status === 'listening').length)
 const errorCount = computed(() => accounts.value.filter((item) => item.status === 'error').length)
 const syncedCount = computed(() => accounts.value.reduce((sum, item) => sum + (item.last_synced_uid ?? 0), 0))
+const selectedFolders = computed(() => selectedAccount.value?.folders ?? [])
 const flowSteps = [
   { title: 'Provider Preset', description: '统一由后端维护 Gmail、Outlook 和其它邮箱的 IMAP 主机、认证提示和建议文件夹。' },
   { title: 'Folder Cursor', description: '每个邮箱账户保留主文件夹同步进度，并按客户端方式展示文件夹状态。' },
@@ -305,7 +307,7 @@ async function load(options: { silent?: boolean } = {}): Promise<void> {
     if (selectedAccount.value) {
       selectedAccount.value = accounts.value.find((item) => item.id === selectedAccount.value?.id) ?? accounts.value[0] ?? null
     }
-    if (editingAccount.value) {
+    if (editingAccount.value && !isFormPanelOpen.value) {
       editingAccount.value = accounts.value.find((item) => item.id === editingAccount.value?.id) ?? null
     }
     if (!accounts.value.length) {
@@ -334,20 +336,39 @@ async function openCreate(): Promise<void> {
   formPanelRef.value?.focus?.()
 }
 
-async function connectOutlook(): Promise<void> {
+async function connectOutlook(payload?: OutlookOAuthStartPayload): Promise<void> {
   outlookConnecting.value = true
   formError.value = null
   try {
-    const response = await mailAccountsApi.startOutlookOAuth({
-      is_active: true,
-      mailbox_folder: 'INBOX',
-      listen_interval_seconds: 5,
-    })
+    const response = await mailAccountsApi.startOutlookOAuth(
+      payload ?? {
+        is_active: true,
+        mailbox_folder: 'INBOX',
+        listen_interval_seconds: 5,
+        listener_mode: 'polling',
+      },
+    )
     window.location.href = response.authorization_url
   } catch (err) {
     formError.value = err instanceof Error ? err.message : 'Failed to start Outlook OAuth'
     outlookConnecting.value = false
   }
+}
+
+async function reconnectOutlook(): Promise<void> {
+  const account = selectedAccount.value
+  await connectOutlook(
+    account
+      ? {
+          owner_email: account.owner_email,
+          display_name: account.display_name,
+          mailbox_folder: account.mailbox_folder,
+          is_active: account.is_active,
+          listen_interval_seconds: account.listen_interval_seconds,
+          listener_mode: account.listener_mode,
+        }
+      : undefined,
+  )
 }
 
 async function selectAccount(account: MailAccountItem): Promise<void> {
@@ -385,14 +406,18 @@ async function saveAccount(payload: MailAccountPayload): Promise<void> {
   formMessage.value = null
   formError.value = null
   try {
+    let savedAccount: MailAccountItem
     if (editingAccount.value) {
       const updatePayload = { ...payload }
       if (!updatePayload.imap_password) delete updatePayload.imap_password
-      await mailAccountsApi.update(editingAccount.value.id, updatePayload)
+      savedAccount = await mailAccountsApi.update(editingAccount.value.id, updatePayload)
       formMessage.value = '邮箱配置已更新'
     } else {
-      await mailAccountsApi.create(payload)
+      savedAccount = await mailAccountsApi.create(payload)
       formMessage.value = '邮箱账户已创建'
+    }
+    if (payload.listener_mode === 'idle_fallback' && savedAccount.listener_mode !== 'idle_fallback') {
+      formMessage.value = `${formMessage.value}；当前后端还不支持保存“IMAP IDLE + 兜底”，已按纯轮询处理`
     }
     editingAccount.value = null
     isFormPanelOpen.value = false
@@ -475,7 +500,9 @@ onMounted(async () => {
   }
   await load()
   refreshTimer = window.setInterval(() => {
-    void load({ silent: true })
+    if (!isFormPanelOpen.value) {
+      void load({ silent: true })
+    }
   }, 5000)
 })
 
