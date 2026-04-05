@@ -296,6 +296,7 @@ export interface MailAccountDeleteResult {
   account_id: string
   deleted_email_count: number
   status: string
+  delete_remote: string
 }
 
 export interface AllowlistItem {

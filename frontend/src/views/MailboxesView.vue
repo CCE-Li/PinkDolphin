@@ -126,7 +126,7 @@
                     <button class="btn-primary" type="button" :disabled="syncingId === selectedAccount.id" @click="runSync(selectedAccount)">
                       {{ syncingId === selectedAccount.id ? '同步中...' : '立即同步' }}
                     </button>
-                    <button class="btn-danger" type="button" :disabled="removingId === selectedAccount.id" @click="removeAccount(selectedAccount)">
+                    <button class="btn-danger" type="button" :disabled="removingId === selectedAccount.id" @click="openRemoveDialog(selectedAccount)">
                       {{ removingId === selectedAccount.id ? '解绑中...' : '解绑账户' }}
                     </button>
                   </div>
@@ -242,6 +242,119 @@
         </div>
       </div>
     </div>
+
+    <div
+      v-if="pendingRemovalAccount"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4 py-6 backdrop-blur-sm"
+    >
+      <div class="panel w-full max-w-xl">
+        <div class="panel-header">
+          <div>
+            <h2 class="text-xl font-semibold tracking-[-0.03em] text-slate-950">解绑邮箱账户</h2>
+            <p class="mt-2 text-sm text-slate-500">选择解绑范围。</p>
+          </div>
+        </div>
+        <div class="panel-body space-y-4">
+          <div class="rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-4">
+            <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">当前账户</div>
+            <div class="mt-2 text-base font-semibold tracking-[-0.02em] text-slate-950">
+              {{ pendingRemovalAccount.display_name || pendingRemovalAccount.email_address }}
+            </div>
+            <div class="mt-1 text-sm text-slate-500">
+              {{ pendingRemovalAccount.email_address }} · {{ pendingRemovalAccount.provider_label }}
+            </div>
+          </div>
+          <div class="grid gap-3">
+            <button
+              class="group rounded-[24px] border border-slate-200 bg-white px-5 py-4 text-left transition hover:border-sky-200 hover:bg-sky-50/40 disabled:cursor-not-allowed disabled:opacity-60"
+              type="button"
+              :disabled="removingId === pendingRemovalAccount.id"
+              @click="removeAccount(pendingRemovalAccount, false)"
+            >
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <div class="text-base font-semibold tracking-[-0.02em] text-slate-950">仅删本地</div>
+                  <div class="mt-1 text-sm text-slate-500">移除账户配置、本地邮件与分析记录。</div>
+                </div>
+                <div class="rounded-full bg-sky-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-700">
+                  推荐
+                </div>
+              </div>
+              <div class="mt-3 text-xs uppercase tracking-[0.16em] text-slate-400">
+                真实邮箱不受影响
+              </div>
+            </button>
+            <button
+              class="group rounded-[24px] border border-red-200 bg-white px-5 py-4 text-left transition hover:border-red-300 hover:bg-red-50/40 disabled:cursor-not-allowed disabled:opacity-60"
+              type="button"
+              :disabled="removingId === pendingRemovalAccount.id"
+              @click="openRemoteDeleteConfirm(pendingRemovalAccount)"
+            >
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <div class="text-base font-semibold tracking-[-0.02em] text-red-700">删除远端</div>
+                  <div class="mt-1 text-sm text-slate-500">同时删除真实邮箱中的对应邮件。</div>
+                </div>
+                <div class="rounded-full bg-red-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-red-700">
+                  高风险
+                </div>
+              </div>
+              <div class="mt-3 text-xs uppercase tracking-[0.16em] text-red-500">
+                不可恢复
+              </div>
+            </button>
+          </div>
+          <div class="flex justify-end">
+            <button class="btn-secondary" type="button" :disabled="Boolean(removingId)" @click="closeRemoveDialog">关闭</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-if="remoteDeleteConfirmAccount"
+      class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/45 px-4 py-6 backdrop-blur-sm"
+    >
+      <div class="panel w-full max-w-xl">
+        <div class="panel-header">
+          <div>
+            <h2 class="text-xl font-semibold tracking-[-0.03em] text-red-700">高风险确认</h2>
+            <p class="mt-2 text-sm text-slate-500">确认后将尝试删除真实邮箱中的对应邮件。</p>
+          </div>
+        </div>
+        <div class="panel-body space-y-4">
+          <div class="rounded-[22px] border border-red-200 bg-red-50/70 px-4 py-4 text-sm leading-7 text-slate-700">
+            <div class="font-semibold text-red-700">
+              {{ remoteDeleteConfirmAccount.display_name || remoteDeleteConfirmAccount.email_address }}
+            </div>
+            <div class="mt-1">
+              将删除本系统中已同步的邮件，并尝试同步删除真实邮箱中的对应邮件。该操作不可恢复。
+            </div>
+          </div>
+          <label class="flex items-start gap-3 rounded-[20px] border border-slate-200 bg-white px-4 py-4 text-sm leading-7 text-slate-700">
+            <input v-model="remoteDeleteRiskAcknowledged" type="checkbox" class="mt-1" />
+            <span>我已了解这会影响真实邮箱，且无法恢复。</span>
+          </label>
+          <div class="flex items-center justify-between gap-4">
+            <div class="rounded-full bg-slate-100 px-3 py-2 text-sm text-slate-500">
+              <template v-if="remoteDeleteCooldown > 0">{{ remoteDeleteCooldown }}s 后可确认</template>
+              <template v-else>已解锁确认</template>
+            </div>
+            <div class="flex gap-3">
+              <button class="btn-secondary" type="button" :disabled="Boolean(removingId)" @click="closeRemoteDeleteConfirm">返回</button>
+              <button
+                class="btn-danger"
+                type="button"
+                :disabled="Boolean(removingId) || !remoteDeleteRiskAcknowledged || remoteDeleteCooldown > 0"
+                @click="confirmRemoteDelete"
+              >
+                {{ removingId === remoteDeleteConfirmAccount.id ? '删除中...' : '确认远端删除' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 </template>
 
@@ -272,6 +385,10 @@ const error = ref<string | null>(null)
 const accounts = ref<MailAccountItem[]>([])
 const editingAccount = ref<MailAccountItem | null>(null)
 const selectedAccount = ref<MailAccountItem | null>(null)
+const pendingRemovalAccount = ref<MailAccountItem | null>(null)
+const remoteDeleteConfirmAccount = ref<MailAccountItem | null>(null)
+const remoteDeleteRiskAcknowledged = ref(false)
+const remoteDeleteCooldown = ref(0)
 const submitting = ref(false)
 const testingId = ref<string | null>(null)
 const syncingId = ref<string | null>(null)
@@ -285,6 +402,7 @@ const isFormPanelOpen = ref(false)
 const outlookConnecting = ref(false)
 const foldersCollapsed = ref(true)
 let refreshTimer: number | null = null
+let remoteDeleteCooldownTimer: number | null = null
 
 const listeningCount = computed(() => accounts.value.filter((item) => item.status === 'listening').length)
 const errorCount = computed(() => accounts.value.filter((item) => item.status === 'error').length)
@@ -392,6 +510,57 @@ function resetForm(): void {
   isFormPanelOpen.value = false
 }
 
+function openRemoveDialog(account: MailAccountItem): void {
+  pendingRemovalAccount.value = account
+  formMessage.value = null
+  formError.value = null
+}
+
+function closeRemoveDialog(): void {
+  if (removingId.value) return
+  pendingRemovalAccount.value = null
+}
+
+function openRemoteDeleteConfirm(account: MailAccountItem): void {
+  remoteDeleteConfirmAccount.value = account
+  remoteDeleteRiskAcknowledged.value = false
+  remoteDeleteCooldown.value = 3
+  if (remoteDeleteCooldownTimer !== null) {
+    window.clearInterval(remoteDeleteCooldownTimer)
+  }
+  remoteDeleteCooldownTimer = window.setInterval(() => {
+    if (remoteDeleteCooldown.value <= 1) {
+      remoteDeleteCooldown.value = 0
+      if (remoteDeleteCooldownTimer !== null) {
+        window.clearInterval(remoteDeleteCooldownTimer)
+        remoteDeleteCooldownTimer = null
+      }
+      return
+    }
+    remoteDeleteCooldown.value -= 1
+  }, 1000)
+}
+
+function closeRemoteDeleteConfirmInternal(force = false): void {
+  if (removingId.value && !force) return
+  remoteDeleteConfirmAccount.value = null
+  remoteDeleteRiskAcknowledged.value = false
+  remoteDeleteCooldown.value = 0
+  if (remoteDeleteCooldownTimer !== null) {
+    window.clearInterval(remoteDeleteCooldownTimer)
+    remoteDeleteCooldownTimer = null
+  }
+}
+
+function closeRemoteDeleteConfirm(): void {
+  closeRemoteDeleteConfirmInternal(false)
+}
+
+async function confirmRemoteDelete(): Promise<void> {
+  if (!remoteDeleteConfirmAccount.value) return
+  await removeAccount(remoteDeleteConfirmAccount.value, true)
+}
+
 function openConfigManagement(): void {
   isFormPanelOpen.value = false
   void router.push('/config-management')
@@ -459,17 +628,14 @@ async function runSync(account: MailAccountItem): Promise<void> {
   }
 }
 
-async function removeAccount(account: MailAccountItem): Promise<void> {
-  const confirmed = window.confirm(`解绑 ${account.display_name || account.email_address} 后，会删除该邮箱配置和该邮箱已同步的所有邮件，继续吗？`)
-  if (!confirmed) return
-
+async function removeAccount(account: MailAccountItem, deleteRemote: boolean): Promise<void> {
   removingId.value = account.id
   formMessage.value = null
   formError.value = null
   testResult.value = null
   syncResult.value = null
   try {
-    const result = await mailAccountsApi.remove(account.id)
+    const result = await mailAccountsApi.remove(account.id, { deleteRemote })
     if (selectedAccount.value?.id === account.id) {
       selectedAccount.value = null
     }
@@ -477,7 +643,11 @@ async function removeAccount(account: MailAccountItem): Promise<void> {
       editingAccount.value = null
     }
     isFormPanelOpen.value = false
-    formMessage.value = `邮箱账户已解绑，并删除 ${result.deleted_email_count} 封关联邮件`
+    pendingRemovalAccount.value = null
+    closeRemoteDeleteConfirmInternal(true)
+    formMessage.value = deleteRemote
+      ? `邮箱账户已解绑，并删除本地与远端共 ${result.deleted_email_count} 封关联邮件`
+      : `邮箱账户已解绑，并删除本地 ${result.deleted_email_count} 封关联邮件`
     await load()
   } catch (err) {
     formError.value = err instanceof Error ? err.message : 'Delete failed'
@@ -509,6 +679,9 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   if (refreshTimer !== null) {
     window.clearInterval(refreshTimer)
+  }
+  if (remoteDeleteCooldownTimer !== null) {
+    window.clearInterval(remoteDeleteCooldownTimer)
   }
 })
 </script>

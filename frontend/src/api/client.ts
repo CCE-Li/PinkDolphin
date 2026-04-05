@@ -20,7 +20,13 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     const message = formatApiErrorMessage(error)
-    return Promise.reject(new Error(message))
+    const normalizedError = new Error(message) as Error & {
+      cause?: unknown
+      response?: unknown
+    }
+    normalizedError.cause = error
+    normalizedError.response = (error as { response?: unknown })?.response
+    return Promise.reject(normalizedError)
   },
 )
 

@@ -494,11 +494,15 @@ class MailAccountService:
             raise
         return highest_uid
 
-    async def delete_account(self, session: AsyncSession, account: MailAccount) -> int:
+    async def delete_account(self, session: AsyncSession, account: MailAccount, *, delete_remote: bool = False) -> int:
         from app.services.email_service import EmailService
 
         await session.refresh(account, attribute_names=["emails"])
-        deleted_count = await EmailService().delete_emails_by_mail_account_id(session, account.id)
+        deleted_count = await EmailService().delete_emails_by_mail_account_id(
+            session,
+            account.id,
+            delete_remote=delete_remote,
+        )
         await session.delete(account)
         await session.flush()
         await self.issue_log_service.log(
@@ -510,6 +514,7 @@ class MailAccountService:
                 "account_id": account.id,
                 "email_address": account.email_address,
                 "deleted_email_count": deleted_count,
+                "delete_remote": delete_remote,
             },
         )
         return deleted_count

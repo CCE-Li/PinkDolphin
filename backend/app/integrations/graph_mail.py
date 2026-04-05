@@ -102,6 +102,18 @@ class GraphMailClient:
         url = f"{self.GRAPH_BASE_URL}/me/messages/{message_id}/$value"
         return await self._request_bytes("GET", url, access_token)
 
+    async def message_exists(self, access_token: str, message_id: str) -> bool:
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.get(
+                f"{self.GRAPH_BASE_URL}/me/messages/{message_id}?$select=id",
+                headers=self._headers(access_token),
+            )
+        if response.status_code == 404:
+            return False
+        if response.status_code >= 400:
+            raise AppException(status_code=502, code="graph_request_failed", message=response.text)
+        return True
+
     async def delete_message(self, access_token: str, message_id: str) -> None:
         await self._request_empty("DELETE", f"{self.GRAPH_BASE_URL}/me/messages/{message_id}", access_token)
 

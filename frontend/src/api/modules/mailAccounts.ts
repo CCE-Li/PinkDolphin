@@ -40,8 +40,12 @@ export const mailAccountsApi = {
     )
     return normalizeMailAccount(data)
   },
-  async remove(id: string): Promise<MailAccountDeleteResult> {
-    const { data } = await apiClient.delete<MailAccountDeleteResult>(`/api/mail-accounts/${id}`)
+  async remove(id: string, options: { deleteRemote?: boolean } = {}): Promise<MailAccountDeleteResult> {
+    const { data } = await apiClient.delete<MailAccountDeleteResult>(`/api/mail-accounts/${id}`, {
+      params: {
+        delete_remote: options.deleteRemote ? 'true' : 'false',
+      },
+    })
     return data
   },
   async test(id: string): Promise<MailAccountTestResult> {
@@ -80,7 +84,9 @@ function shouldRetryWithoutListenerMode(
 ): boolean {
   if (payload.listener_mode == null) return false
 
-  const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+  const detail =
+    (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail ||
+    (error as { cause?: { response?: { data?: { detail?: unknown } } } })?.cause?.response?.data?.detail
   if (!Array.isArray(detail)) return false
 
   return detail.some((item) => {

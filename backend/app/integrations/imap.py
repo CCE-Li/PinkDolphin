@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import imaplib
-import socket
+import select
+import time
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -9,6 +10,21 @@ if TYPE_CHECKING:
 
 
 class IMAPClient:
+    @staticmethod
+    def _wait_for_readable(client: imaplib.IMAP4, timeout_seconds: float) -> bool:
+        sock = getattr(client, "sock", None)
+        if sock is None:
+            raise RuntimeError("imap client socket is unavailable")
+        timeout = max(timeout_seconds, 0.0)
+        readable, _, _ = select.select([sock], [], [], timeout)
+        return bool(readable)
+
+    @staticmethod
+    def _readline_when_ready(client: imaplib.IMAP4, timeout_seconds: float) -> bytes | None:
+        if not IMAPClient._wait_for_readable(client, timeout_seconds):
+            return None
+        return client.readline()
+
     @staticmethod
     def _format_select_error(mailbox_folder: str, status: str, payload: object) -> RuntimeError:
         details = ""
@@ -80,6 +96,13 @@ class IMAPClient:
         raise RuntimeError(f"missing email body for uid {uid}")
 
     @staticmethod
+    def uid_exists(client: imaplib.IMAP4, uid: int) -> bool:
+        status, payload = client.uid("search", None, f"UID {uid}")
+        if status != "OK" or not payload or not payload[0]:
+            return False
+        return any(item == str(uid).encode("ascii") for item in payload[0].split())
+
+    @staticmethod
     def delete_message(client: imaplib.IMAP4, uid: int) -> None:
         status, _ = client.uid("store", str(uid), "+FLAGS", "(\\Deleted)")
         if status != "OK":
@@ -99,22 +122,20 @@ class IMAPClient:
         if not hasattr(client, "_new_tag") or not hasattr(client, "readline") or not hasattr(client, "send"):
             raise RuntimeError("imap client does not support IDLE")
 
-        tag = client._new_tag()  # type: ignore[attr-defined]
-        client.send(f"{tag} IDLE\r\n".encode("ascii"))
-        response = client.readline()
+        tag: bytes = client._new_tag()  # type: ignore[attr-defined]
+        client.send(tag + b" IDLE\r\n")
+        response = IMAPClient._readline_when_ready(client, min(max(timeout_seconds, 1), 10))
+        if response is None:
+            raise RuntimeError("imap idle continuation timed out")
         if not response.startswith(b"+"):
             raise RuntimeError(f"imap idle rejected: {response.decode(errors='replace')}")
 
         activity_detected = False
-        previous_timeout = None
-        if getattr(client, "sock", None) is not None:
-            previous_timeout = client.sock.gettimeout()
-            client.sock.settimeout(timeout_seconds)
+        deadline = time.monotonic() + max(timeout_seconds, 0)
         try:
-            while True:
-                try:
-                    line = client.readline()
-                except (socket.timeout, TimeoutError, OSError):
+            while time.monotonic() < deadline:
+                line = IMAPClient._readline_when_ready(client, deadline - time.monotonic())
+                if line is None:
                     break
                 if not line:
                     break
@@ -124,14 +145,15 @@ class IMAPClient:
                     break
         finally:
             client.send(b"DONE\r\n")
-            while True:
-                done_response = client.readline()
+            done_deadline = time.monotonic() + 10
+            while time.monotonic() < done_deadline:
+                done_response = IMAPClient._readline_when_ready(client, done_deadline - time.monotonic())
+                if done_response is None:
+                    raise RuntimeError("imap idle DONE acknowledgement timed out")
                 if not done_response:
                     break
-                if done_response.startswith(tag.encode("ascii")):
+                if done_response.startswith(tag):
                     break
-            if getattr(client, "sock", None) is not None:
-                client.sock.settimeout(previous_timeout)
         return activity_detected
 
     @staticmethod

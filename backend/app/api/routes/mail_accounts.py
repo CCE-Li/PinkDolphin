@@ -98,11 +98,17 @@ async def update_mail_account(
 @router.delete("/{account_id}", dependencies=[Depends(require_admin_token)])
 async def delete_mail_account(
     account_id: str,
+    delete_remote: bool = Query(default=False),
     session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, int | str]:
     account = await mail_account_service.get_account(session, account_id)
-    deleted_email_count = await mail_account_service.delete_account(session, account)
-    return {"account_id": account_id, "deleted_email_count": deleted_email_count, "status": "deleted"}
+    deleted_email_count = await mail_account_service.delete_account(session, account, delete_remote=delete_remote)
+    return {
+        "account_id": account_id,
+        "deleted_email_count": deleted_email_count,
+        "status": "deleted",
+        "delete_remote": "true" if delete_remote else "false",
+    }
 
 
 @router.post("/{account_id}/test", response_model=MailAccountTestResult, dependencies=[Depends(require_admin_token)])

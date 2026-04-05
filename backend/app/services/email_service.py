@@ -181,7 +181,13 @@ class EmailService:
             },
         )
 
-    async def delete_emails_by_mail_account_id(self, session: AsyncSession, mail_account_id: str) -> int:
+    async def delete_emails_by_mail_account_id(
+        self,
+        session: AsyncSession,
+        mail_account_id: str,
+        *,
+        delete_remote: bool = False,
+    ) -> int:
         stmt = (
             select(Email)
             .where(Email.mailbox_account_id == mail_account_id)
@@ -190,7 +196,7 @@ class EmailService:
         )
         emails = list((await session.execute(stmt)).scalars().all())
         for email in emails:
-            await self.delete_email(session, email, delete_remote=False)
+            await self.delete_email(session, email, delete_remote=delete_remote)
         return len(emails)
 
     def parse_request(self, payload: EmailAnalyzeRequest) -> ParsedEmailSchema:

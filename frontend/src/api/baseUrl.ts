@@ -1,7 +1,8 @@
-export const API_BASE_URL_STORAGE_KEY = 'phishing_console_api_base_url'
+export const API_BASE_URL_STORAGE_KEY = 'http://localhost:8002'
 
-const LEGACY_API_BASE_URL_STORAGE_KEYS = ['https://pinkdolphin.kkk1eran.top']
-const API_PREFIX = '/api'
+const LEGACY_API_BASE_URL_STORAGE_KEYS = ['http://localhost:8002']
+// const API_PREFIX = '/api'
+const API_PREFIX = ''
 
 export function getApiBaseUrl(): string {
   const runtimeOverride = getStoredApiBaseUrl()

@@ -160,6 +160,10 @@ class MailboxSyncService:
     ) -> dict[str, str | int]:
         async with db_manager.session() as session:
             account = await self.mail_account_service.get_account(session, mail_account_id)
+            runtime = self.mail_account_service.to_runtime(account)
+            if not await self._remote_email_exists(runtime, uid=uid, remote_message_id=remote_message_id, remote_folder=remote_folder):
+                await self.mail_account_service.mark_synced(session, mail_account_id, uid or ((account.last_synced_uid or 0) + 1))
+                return {"status": "remote_deleted", "email_id": "", "uid": uid or 0}
             existing = None
             if remote_message_id:
                 existing = await self.email_service.get_by_remote_message_id(
@@ -192,3 +196,27 @@ class MailboxSyncService:
             )
             await self.mail_account_service.mark_synced(session, mail_account_id, uid or ((account.last_synced_uid or 0) + 1))
             return {"status": getattr(result, "status", "analyzed"), "email_id": result.email_id, "uid": uid or 0}
+
+    async def _remote_email_exists(
+        self,
+        runtime,
+        *,
+        uid: int | None,
+        remote_message_id: str | None,
+        remote_folder: str,
+    ) -> bool:
+        if runtime.sync_mode == "graph":
+            if not remote_message_id:
+                return False
+            access_token = await self.mail_account_service.get_graph_access_token(runtime)
+            return await self.mail_account_service.graph_client.message_exists(access_token, remote_message_id)
+
+        if uid is None:
+            return False
+
+        client = await asyncio.to_thread(self.imap_client.connect, runtime)
+        try:
+            await asyncio.to_thread(self.imap_client.select_mailbox, client, remote_folder, readonly=True)
+            return await asyncio.to_thread(self.imap_client.uid_exists, client, uid)
+        finally:
+            await asyncio.to_thread(self.imap_client.close, client)
