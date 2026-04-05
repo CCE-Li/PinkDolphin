@@ -57,6 +57,15 @@ class Settings(BaseSettings):
     mailbox_listener_retry_seconds: int = 10
     mailbox_default_poll_seconds: int = 5
     mailbox_credentials_secret: str = "change-me-mailbox-secret"
+    frontend_app_url: str = "http://localhost:5173"
+    backend_public_url: str = "http://localhost:8001"
+    microsoft_tenant_id: str = "common"
+    microsoft_client_id: str | None = None
+    microsoft_client_secret: str | None = None
+    microsoft_graph_redirect_path: str = "/api/mail-accounts/oauth/outlook/callback"
+    microsoft_graph_scopes: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["offline_access", "openid", "profile", "User.Read", "Mail.ReadWrite"]
+    )
     privacy_skip_url_on_sender_allowlist: bool = False
     privacy_skip_attachment_on_sender_allowlist: bool = False
     privacy_skip_llm_on_sender_allowlist: bool = False
@@ -109,6 +118,17 @@ class Settings(BaseSettings):
             return [item.strip() for item in value.split(",") if item.strip()]
         return cast(list[str], value)
 
+    @field_validator("microsoft_graph_scopes", mode="before")
+    @classmethod
+    def parse_microsoft_graph_scopes(cls, value: Any) -> list[str]:
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped.startswith("[") and stripped.endswith("]"):
+                parsed = json.loads(stripped)
+                return [str(item).strip() for item in parsed if str(item).strip()]
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return cast(list[str], value)
+
     @property
     def inbox_path(self) -> Path:
         return Path(self.local_inbox_dir)
@@ -120,6 +140,10 @@ class Settings(BaseSettings):
     @property
     def failed_path(self) -> Path:
         return Path(self.local_failed_dir)
+
+    @property
+    def microsoft_graph_redirect_uri(self) -> str:
+        return f"{self.backend_public_url.rstrip('/')}{self.microsoft_graph_redirect_path}"
 
 
 @lru_cache

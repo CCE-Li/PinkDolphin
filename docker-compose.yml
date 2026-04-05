@@ -36,7 +36,7 @@ services:
         UV_INDEX_URL: https://mirrors.ustc.edu.cn/pypi/simple
     container_name: phishing_backend
     env_file:
-      - ./backend/.env.example
+      - ./backend/.env
     environment:
       APP_ENV: docker
       DATABASE_URL: postgresql+psycopg://phishing:phishing@postgres:5432/phishing_mail
@@ -61,7 +61,7 @@ services:
         UV_INDEX_URL: https://mirrors.ustc.edu.cn/pypi/simple
     container_name: phishing_worker
     env_file:
-      - ./backend/.env.example
+      - ./backend/.env
     environment:
       APP_ENV: docker
       DATABASE_URL: postgresql+psycopg://phishing:phishing@postgres:5432/phishing_mail
@@ -84,7 +84,7 @@ services:
         UV_INDEX_URL: https://mirrors.ustc.edu.cn/pypi/simple
     container_name: phishing_worker_mailbox_analysis
     env_file:
-      - ./backend/.env.example
+      - ./backend/.env
     environment:
       APP_ENV: docker
       DATABASE_URL: postgresql+psycopg://phishing:phishing@postgres:5432/phishing_mail

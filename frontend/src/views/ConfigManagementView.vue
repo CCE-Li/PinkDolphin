@@ -113,6 +113,18 @@ type ConfigGroup = {
 
 const fieldGroups: ConfigGroup[] = [
   {
+    title: 'Outlook / Microsoft Graph',
+    items: [
+      { key: 'MICROSOFT_CLIENT_ID', label: 'Microsoft Client ID', description: 'Azure App Registration 的应用程序(客户端) ID。', placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx' },
+      { key: 'MICROSOFT_CLIENT_SECRET', label: 'Microsoft Client Secret', description: 'Azure 应用客户端密钥。', placeholder: 'client secret', secret: true },
+      { key: 'MICROSOFT_TENANT_ID', label: 'Tenant ID', description: '个人 Outlook 通常可用 common；企业租户可填写实际 tenant ID。', placeholder: 'common' },
+      { key: 'BACKEND_PUBLIC_URL', label: 'Backend Public URL', description: '微软 OAuth 回调访问的后端地址，需与你本地后端端口一致。', placeholder: 'http://127.0.0.1:8002' },
+      { key: 'FRONTEND_APP_URL', label: 'Frontend App URL', description: '授权完成后跳回的前端地址。', placeholder: 'http://127.0.0.1:5173' },
+      { key: 'MICROSOFT_GRAPH_REDIRECT_PATH', label: 'Redirect Path', description: '通常保持默认回调路径即可。', placeholder: '/api/mail-accounts/oauth/outlook/callback' },
+      { key: 'MICROSOFT_GRAPH_SCOPES', label: 'Graph Scopes', description: 'JSON 数组格式的 Microsoft Graph 授权范围。', placeholder: '["offline_access","openid","profile","User.Read","Mail.ReadWrite"]', multiline: true },
+    ],
+  },
+  {
     title: 'LLM',
     items: [
       {
@@ -262,7 +274,7 @@ function stringifyEnvContent(values: Record<string, string>): string {
 function displayValue(key: string): string {
   const value = configMap.value[key] ?? ''
   if (!value) return '--'
-  if (key.includes('API_KEY')) {
+  if (key.includes('API_KEY') || key.includes('SECRET')) {
     return `${value.slice(0, 6)}***${value.slice(-4)}`
   }
   if (value === 'true') return '开启'

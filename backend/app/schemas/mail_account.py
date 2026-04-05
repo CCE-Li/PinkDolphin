@@ -18,6 +18,7 @@ class MailAccountBase(BaseModel):
     use_ssl: bool = True
     is_active: bool = True
     listen_interval_seconds: int | None = None
+    listener_mode: str = "polling"
 
     @field_validator("imap_host", mode="before")
     @classmethod
@@ -44,6 +45,42 @@ class MailAccountUpdate(BaseModel):
     use_ssl: bool | None = None
     is_active: bool | None = None
     listen_interval_seconds: int | None = None
+    listener_mode: str | None = None
+
+
+class MailboxFolderRead(BaseModel):
+    name: str
+    label: str
+    is_primary: bool
+    last_seen_uid: int | None = None
+    last_synced_uid: int | None = None
+    last_sync_at: datetime | None = None
+
+
+class MailProviderPresetRead(BaseModel):
+    id: MailboxProvider
+    label: str
+    imap_host: str
+    imap_port: int
+    auth_type: str = "password"
+    sync_mode: str = "imap"
+    auth_hint: str
+    password_placeholder: str
+    supports_app_password: bool
+    suggested_folders: list[str]
+
+
+class OutlookOAuthStartRequest(BaseModel):
+    owner_email: str | None = None
+    display_name: str | None = None
+    mailbox_folder: str = "INBOX"
+    is_active: bool = True
+    listen_interval_seconds: int | None = None
+    listener_mode: str = "polling"
+
+
+class OutlookOAuthStartResponse(BaseModel):
+    authorization_url: str
 
 
 class MailAccountRead(TimestampedSchema):
@@ -51,6 +88,9 @@ class MailAccountRead(TimestampedSchema):
     email_address: str
     display_name: str | None
     provider: MailboxProvider
+    auth_type: str = "password"
+    sync_mode: str = "imap"
+    provider_label: str
     imap_host: str
     imap_port: int
     imap_username: str
@@ -59,10 +99,16 @@ class MailAccountRead(TimestampedSchema):
     is_active: bool
     status: MailboxStatus
     listen_interval_seconds: int
+    listener_mode: str = "polling"
     last_seen_uid: int | None
     last_synced_uid: int | None
     last_sync_at: datetime | None
     last_error: str | None
+    auth_hint: str
+    supports_app_password: bool
+    suggested_folders: list[str]
+    folders: list[MailboxFolderRead]
+    graph_connected: bool = False
 
 
 class MailAccountTestResult(BaseModel):

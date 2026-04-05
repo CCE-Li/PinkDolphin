@@ -14,7 +14,17 @@ from app.schemas.email import (
 )
 from app.schemas.incident import IncidentRead
 from app.schemas.issue_log import IssueLogRead
-from app.schemas.mail_account import MailAccountCreate, MailAccountRead, MailAccountSyncResult, MailAccountTestResult, MailAccountUpdate
+from app.schemas.mail_account import (
+    MailAccountCreate,
+    MailAccountRead,
+    MailAccountSyncResult,
+    MailAccountTestResult,
+    MailAccountUpdate,
+    MailProviderPresetRead,
+    MailboxFolderRead,
+    OutlookOAuthStartRequest,
+    OutlookOAuthStartResponse,
+)
 from app.schemas.report import UserReportCreate, UserReportRead
 from app.schemas.rule import RuleCreate, RuleRead, RuleUpdate
 
@@ -42,6 +52,10 @@ __all__ = [
     "MailAccountSyncResult",
     "MailAccountTestResult",
     "MailAccountUpdate",
+    "MailProviderPresetRead",
+    "MailboxFolderRead",
+    "OutlookOAuthStartRequest",
+    "OutlookOAuthStartResponse",
     "ParsedEmailSchema",
     "RuleCreate",
     "RuleRead",

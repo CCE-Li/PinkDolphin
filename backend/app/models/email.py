@@ -15,6 +15,7 @@ class Email(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         Index("ix_emails_subject", "subject"),
         Index("ix_emails_status", "status"),
         Index("ix_emails_mailbox_account_id", "mailbox_account_id"),
+        Index("ix_emails_remote_message_id", "remote_message_id"),
         UniqueConstraint("mailbox_account_id", "remote_folder", "remote_uid", name="uq_emails_mailbox_account_folder_remote_uid"),
     )
 
@@ -29,6 +30,7 @@ class Email(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     raw_email: Mapped[str | None] = mapped_column(Text, nullable=True)
     mailbox_account_id: Mapped[str | None] = mapped_column(ForeignKey("mail_accounts.id", ondelete="SET NULL"), nullable=True)
     remote_uid: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    remote_message_id: Mapped[str | None] = mapped_column(String(512), nullable=True)
     remote_folder: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[EmailStatus] = mapped_column(
         sql_enum(EmailStatus),

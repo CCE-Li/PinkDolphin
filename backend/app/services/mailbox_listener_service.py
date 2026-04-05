@@ -76,11 +76,32 @@ class MailboxListenerService:
                     runtime = self.mail_account_service.to_runtime(account)
                     await self.mail_account_service.mark_listening(session, account_id)
 
+                if runtime.sync_mode == "graph":
+                    while not stop_event.is_set():
+                        state = await self.mailbox_sync_service.sync_account_once(account_id)
+                        if not state.active:
+                            return
+                        try:
+                            await asyncio.wait_for(stop_event.wait(), timeout=state.poll_seconds)
+                        except TimeoutError:
+                            continue
+                    return
+
                 client = await asyncio.to_thread(self.mail_account_service.imap_client.connect, runtime)
                 while not stop_event.is_set():
                     state = await self.mailbox_sync_service.sync_account_once(account_id, client=client)
                     if not state.active:
                         return
+                    if runtime.listener_mode == "idle_fallback":
+                        activity = await asyncio.to_thread(
+                            self.mail_account_service.imap_client.idle_wait_for_activity,
+                            client,
+                            state.poll_seconds,
+                        )
+                        if activity:
+                            continue
+                        await asyncio.to_thread(self.mail_account_service.imap_client.noop, client)
+                        continue
                     try:
                         await asyncio.wait_for(stop_event.wait(), timeout=state.poll_seconds)
                     except TimeoutError:

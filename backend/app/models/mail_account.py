@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, Index, Integer, String, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -20,6 +20,9 @@ class MailAccount(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     email_address: Mapped[str] = mapped_column(String(320), nullable=False)
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     provider: Mapped[MailboxProvider] = mapped_column(sql_enum(MailboxProvider), nullable=False)
+    auth_type: Mapped[str] = mapped_column(String(32), nullable=False, default="password")
+    sync_mode: Mapped[str] = mapped_column(String(32), nullable=False, default="imap")
+    listener_mode: Mapped[str] = mapped_column(String(32), nullable=False, default="polling")
     imap_host: Mapped[str] = mapped_column(String(255), nullable=False)
     imap_port: Mapped[int] = mapped_column(Integer, nullable=False, default=993)
     imap_username: Mapped[str] = mapped_column(String(320), nullable=False)
@@ -38,5 +41,11 @@ class MailAccount(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     last_synced_uid: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     last_sync_at: Mapped[datetime | None] = mapped_column(nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    oauth_access_token: Mapped[str | None] = mapped_column(Text, nullable=True)
+    oauth_refresh_token: Mapped[str | None] = mapped_column(Text, nullable=True)
+    oauth_token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    oauth_scope: Mapped[str | None] = mapped_column(Text, nullable=True)
+    oauth_subject: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    graph_delta_link: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     emails: Mapped[list["Email"]] = relationship(back_populates="mail_account")

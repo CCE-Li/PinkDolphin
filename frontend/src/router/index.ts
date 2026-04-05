@@ -12,6 +12,7 @@ import EmailsView from '@/views/EmailsView.vue'
 import IssueLogsView from '@/views/IssueLogsView.vue'
 import LoginView from '@/views/LoginView.vue'
 import MailboxesView from '@/views/MailboxesView.vue'
+import PrinciplesView from '@/views/PrinciplesView.vue'
 import RulesView from '@/views/RulesView.vue'
 
 const router = createRouter({
@@ -41,6 +42,7 @@ const router = createRouter({
             { path: '/allowlists', name: 'allowlists', component: AllowlistsView },
             { path: '/config-management', name: 'config-management', component: ConfigManagementView },
             { path: '/issue-logs', name: 'issue-logs', component: IssueLogsView },
+            { path: '/principles', name: 'principles', component: PrinciplesView },
           ],
         },
       ],

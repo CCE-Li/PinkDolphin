@@ -1,4 +1,4 @@
-export const API_BASE_URL_STORAGE_KEY = 'https://pinkdolphin.kkk1eran.top'
+export const API_BASE_URL_STORAGE_KEY = 'http:localhost:8001'
 
 export function getApiBaseUrl(): string {
   const runtimeOverride =

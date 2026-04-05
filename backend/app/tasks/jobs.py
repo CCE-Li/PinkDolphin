@@ -46,12 +46,14 @@ def analyze_mailbox_email_task(
     uid: int,
     raw_email: str,
     remote_folder: str,
+    remote_message_id: str | None = None,
 ) -> dict[str, str | int]:
     service = MailboxSyncService()
     return asyncio.run(
         service.analyze_raw_email(
             mail_account_id=mail_account_id,
             uid=uid,
+            remote_message_id=remote_message_id,
             raw_email=raw_email,
             remote_folder=remote_folder,
         )

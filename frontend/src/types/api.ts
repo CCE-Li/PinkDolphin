@@ -204,6 +204,9 @@ export interface MailAccountItem {
   email_address: string
   display_name: string | null
   provider: string
+  auth_type: string
+  sync_mode: string
+  provider_label: string
   imap_host: string
   imap_port: number
   imap_username: string
@@ -212,10 +215,16 @@ export interface MailAccountItem {
   is_active: boolean
   status: string
   listen_interval_seconds: number
+  listener_mode: string
   last_seen_uid: number | null
   last_synced_uid: number | null
   last_sync_at: string | null
   last_error: string | null
+  auth_hint: string
+  supports_app_password: boolean
+  suggested_folders: string[]
+  folders: MailboxFolderItem[]
+  graph_connected: boolean
 }
 
 export interface MailAccountPayload {
@@ -231,6 +240,7 @@ export interface MailAccountPayload {
   use_ssl: boolean
   is_active: boolean
   listen_interval_seconds?: number | null
+  listener_mode?: string | null
 }
 
 export interface MailAccountTestResult {
@@ -245,6 +255,41 @@ export interface MailAccountSyncResult {
   queued: number
   synced: number
   highest_uid: number | null
+}
+
+export interface MailboxFolderItem {
+  name: string
+  label: string
+  is_primary: boolean
+  last_seen_uid: number | null
+  last_synced_uid: number | null
+  last_sync_at: string | null
+}
+
+export interface MailProviderPresetItem {
+  id: string
+  label: string
+  imap_host: string
+  imap_port: number
+  auth_type: string
+  sync_mode: string
+  auth_hint: string
+  password_placeholder: string
+  supports_app_password: boolean
+  suggested_folders: string[]
+}
+
+export interface OutlookOAuthStartPayload {
+  owner_email?: string | null
+  display_name?: string | null
+  mailbox_folder?: string
+  is_active: boolean
+  listen_interval_seconds?: number | null
+  listener_mode?: string | null
+}
+
+export interface OutlookOAuthStartResponse {
+  authorization_url: string
 }
 
 export interface MailAccountDeleteResult {

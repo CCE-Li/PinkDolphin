@@ -3,13 +3,24 @@ import type {
   MailAccountDeleteResult,
   MailAccountItem,
   MailAccountPayload,
+  MailProviderPresetItem,
   MailAccountSyncResult,
   MailAccountTestResult,
+  OutlookOAuthStartPayload,
+  OutlookOAuthStartResponse,
 } from '@/types/api'
 
 export const mailAccountsApi = {
   async list(): Promise<MailAccountItem[]> {
     const { data } = await apiClient.get<MailAccountItem[]>('/api/mail-accounts')
+    return data
+  },
+  async listProviders(): Promise<MailProviderPresetItem[]> {
+    const { data } = await apiClient.get<MailProviderPresetItem[]>('/api/mail-accounts/providers')
+    return data
+  },
+  async startOutlookOAuth(payload: OutlookOAuthStartPayload): Promise<OutlookOAuthStartResponse> {
+    const { data } = await apiClient.post<OutlookOAuthStartResponse>('/api/mail-accounts/oauth/outlook/start', payload)
     return data
   },
   async create(payload: MailAccountPayload): Promise<MailAccountItem> {

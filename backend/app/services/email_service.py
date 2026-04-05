@@ -77,43 +77,64 @@ class EmailService:
         )
         return (await session.execute(stmt)).scalar_one_or_none()
 
+    async def get_by_remote_message_id(
+        self,
+        session: AsyncSession,
+        *,
+        mailbox_account_id: str,
+        remote_message_id: str,
+    ) -> Email | None:
+        stmt = select(Email).where(
+            Email.mailbox_account_id == mailbox_account_id,
+            Email.remote_message_id == remote_message_id,
+        )
+        return (await session.execute(stmt)).scalar_one_or_none()
+
     async def delete_email(self, session: AsyncSession, email: Email, *, delete_remote: bool = True) -> None:
         deleted_from_mailbox = False
         mailbox_delete_skipped_reason: str | None = None
-        if delete_remote and email.mailbox_account_id and email.remote_uid and email.mail_account is not None:
+        if delete_remote and email.mailbox_account_id and email.mail_account is not None and (email.remote_uid is not None or email.remote_message_id):
+            runtime = self.mail_account_service.to_runtime(email.mail_account)
             try:
-                runtime = self.mail_account_service.to_runtime(email.mail_account)
-                client = await asyncio.to_thread(self.mail_account_service.imap_client.connect, runtime, readonly=False)
-                try:
-                    mailbox_folder = email.remote_folder or runtime.mailbox_folder
-                    await asyncio.to_thread(
-                        self.mail_account_service.imap_client.select_mailbox,
-                        client,
-                        mailbox_folder,
-                        readonly=False,
-                    )
-                    await asyncio.to_thread(self.mail_account_service.imap_client.delete_message, client, email.remote_uid)
-                finally:
-                    await asyncio.to_thread(self.mail_account_service.imap_client.close, client)
+                if runtime.sync_mode == "graph":
+                    if not email.remote_message_id:
+                        raise AppException(status_code=400, code="graph_message_id_missing", message="Graph message id is missing")
+                    access_token = await self.mail_account_service.get_graph_access_token(runtime)
+                    await self.mail_account_service.graph_client.delete_message(access_token, email.remote_message_id)
+                else:
+                    client = await asyncio.to_thread(self.mail_account_service.imap_client.connect, runtime, readonly=False)
+                    try:
+                        mailbox_folder = email.remote_folder or runtime.mailbox_folder
+                        await asyncio.to_thread(
+                            self.mail_account_service.imap_client.select_mailbox,
+                            client,
+                            mailbox_folder,
+                            readonly=False,
+                        )
+                        await asyncio.to_thread(self.mail_account_service.imap_client.delete_message, client, email.remote_uid)
+                    finally:
+                        await asyncio.to_thread(self.mail_account_service.imap_client.close, client)
                 deleted_from_mailbox = True
             except Exception as exc:
                 await self.issue_log_service.log_detached(
                     component="email:delete",
                     severity=IssueSeverity.ERROR,
-                    message="Failed to delete email from mailbox via IMAP",
+                    message="Failed to delete email from mailbox",
                     details={
                         "email_id": email.id,
                         "mailbox_account_id": email.mailbox_account_id,
                         "mailbox_email_address": email.mail_account.email_address,
                         "remote_uid": email.remote_uid,
+                        "remote_message_id": email.remote_message_id,
                         "remote_folder": email.remote_folder,
+                        "sync_mode": runtime.sync_mode,
                         "error": str(exc),
                     },
                 )
                 raise AppException(
                     status_code=502,
-                    code="imap_delete_failed",
-                    message="Failed to delete email from mailbox via IMAP",
+                    code="mailbox_delete_failed",
+                    message="Failed to delete email from mailbox",
                 ) from exc
         elif email.mailbox_account_id and delete_remote:
             if email.mail_account is None:
@@ -189,6 +210,7 @@ class EmailService:
         event_type: AuditEventType,
         mailbox_account_id: str | None = None,
         remote_uid: int | None = None,
+        remote_message_id: str | None = None,
         remote_folder: str | None = None,
     ) -> EmailAnalyzeResponse | EmailAnalyzeDeferredResponse:
         email = Email(
@@ -203,6 +225,7 @@ class EmailService:
             raw_email=parsed_email.raw_email,
             mailbox_account_id=mailbox_account_id,
             remote_uid=remote_uid,
+            remote_message_id=remote_message_id,
             remote_folder=remote_folder,
         )
         session.add(email)

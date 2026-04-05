@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import imaplib
+import socket
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -8,6 +9,26 @@ if TYPE_CHECKING:
 
 
 class IMAPClient:
+    @staticmethod
+    def _format_select_error(mailbox_folder: str, status: str, payload: object) -> RuntimeError:
+        details = ""
+        if isinstance(payload, (list, tuple)):
+            parts: list[str] = []
+            for item in payload:
+                if isinstance(item, bytes):
+                    parts.append(item.decode(errors="replace"))
+                elif item is not None:
+                    parts.append(str(item))
+            details = " | ".join(part for part in parts if part)
+        elif payload is not None:
+            details = str(payload)
+        message = f"failed to select mailbox folder {mailbox_folder}"
+        if status:
+            message += f" (status={status})"
+        if details:
+            message += f": {details}"
+        return RuntimeError(message)
+
     def connect(self, account: MailAccount, *, readonly: bool = True) -> imaplib.IMAP4:
         if account.use_ssl:
             client: imaplib.IMAP4 = imaplib.IMAP4_SSL(
@@ -21,16 +42,16 @@ class IMAPClient:
                 account.imap_port,
             )
         client.login(account.imap_username, account.imap_password)
-        status, _ = client.select(account.mailbox_folder, readonly=readonly)
+        status, payload = client.select(account.mailbox_folder, readonly=readonly)
         if status != "OK":
-            raise RuntimeError(f"failed to select mailbox folder {account.mailbox_folder}")
+            raise self._format_select_error(account.mailbox_folder, status, payload)
         return client
 
     @staticmethod
     def select_mailbox(client: imaplib.IMAP4, mailbox_folder: str, *, readonly: bool = True) -> None:
-        status, _ = client.select(mailbox_folder, readonly=readonly)
+        status, payload = client.select(mailbox_folder, readonly=readonly)
         if status != "OK":
-            raise RuntimeError(f"failed to select mailbox folder {mailbox_folder}")
+            raise IMAPClient._format_select_error(mailbox_folder, status, payload)
 
     @staticmethod
     def get_highest_uid(client: imaplib.IMAP4) -> int | None:
@@ -72,6 +93,46 @@ class IMAPClient:
         status, _ = client.noop()
         if status != "OK":
             raise RuntimeError("imap noop failed")
+
+    @staticmethod
+    def idle_wait_for_activity(client: imaplib.IMAP4, timeout_seconds: int) -> bool:
+        if not hasattr(client, "_new_tag") or not hasattr(client, "readline") or not hasattr(client, "send"):
+            raise RuntimeError("imap client does not support IDLE")
+
+        tag = client._new_tag()  # type: ignore[attr-defined]
+        client.send(f"{tag} IDLE\r\n".encode("ascii"))
+        response = client.readline()
+        if not response.startswith(b"+"):
+            raise RuntimeError(f"imap idle rejected: {response.decode(errors='replace')}")
+
+        activity_detected = False
+        previous_timeout = None
+        if getattr(client, "sock", None) is not None:
+            previous_timeout = client.sock.gettimeout()
+            client.sock.settimeout(timeout_seconds)
+        try:
+            while True:
+                try:
+                    line = client.readline()
+                except (socket.timeout, TimeoutError, OSError):
+                    break
+                if not line:
+                    break
+                decoded = line.decode(errors="replace").strip().upper()
+                if "EXISTS" in decoded or "RECENT" in decoded:
+                    activity_detected = True
+                    break
+        finally:
+            client.send(b"DONE\r\n")
+            while True:
+                done_response = client.readline()
+                if not done_response:
+                    break
+                if done_response.startswith(tag.encode("ascii")):
+                    break
+            if getattr(client, "sock", None) is not None:
+                client.sock.settimeout(previous_timeout)
+        return activity_detected
 
     @staticmethod
     def close(client: imaplib.IMAP4) -> None:

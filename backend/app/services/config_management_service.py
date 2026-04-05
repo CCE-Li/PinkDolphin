@@ -7,6 +7,13 @@ from app.schemas.config_management import EnvFileRead
 
 class ConfigManagementService:
     editable_keys = [
+        "FRONTEND_APP_URL",
+        "BACKEND_PUBLIC_URL",
+        "MICROSOFT_TENANT_ID",
+        "MICROSOFT_CLIENT_ID",
+        "MICROSOFT_CLIENT_SECRET",
+        "MICROSOFT_GRAPH_REDIRECT_PATH",
+        "MICROSOFT_GRAPH_SCOPES",
         "LOG_LEVEL",
         "MAX_UPLOAD_SIZE_MB",
         "LLM_ANALYZER_ENABLED",
