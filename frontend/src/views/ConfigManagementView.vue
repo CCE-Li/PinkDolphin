@@ -84,6 +84,7 @@
         </template>
       </div>
     </div>
+    <BackToTopButton />
   </section>
 </template>
 
@@ -91,6 +92,7 @@
 import { onMounted, ref } from 'vue'
 
 import { configManagementApi } from '@/api/modules/configManagement'
+import BackToTopButton from '@/components/BackToTopButton.vue'
 import ErrorState from '@/components/ErrorState.vue'
 import LoadingState from '@/components/LoadingState.vue'
 import type { EnvFileItem } from '@/types/api'

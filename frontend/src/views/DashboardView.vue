@@ -11,7 +11,7 @@
       </div>
 
       <div class="grid gap-6 xl:grid-cols-[1.2fr,0.8fr]">
-        <div class="panel">
+        <div class="panel overflow-hidden">
           <div class="panel-header">
             <div class="flex flex-wrap items-center gap-3">
               <h2 class="text-lg font-semibold text-slate-900">最近高风险邮件</h2>

@@ -3,6 +3,9 @@
     <div class="flex items-start justify-between gap-4">
       <div>
         <p class="page-eyebrow">Email Detail</p>
+        <button class="btn-secondary mt-3" type="button" @click="goBack">
+          返回上一页
+        </button>
         <h1 class="text-2xl font-semibold tracking-[-0.04em] text-slate-950">标题: "{{ email?.subject || '(No Subject)' }}"</h1>
         <!-- <p class="mt-2 text-sm leading-7 text-slate-500">查看邮件基础信息、正文和原始 EML。</p> -->
         <div class="mt-3 space-y-1 text-sm text-slate-600">
@@ -64,15 +67,17 @@
           >{{ email.raw_email || '--' }}</pre>
         </div>
       </div>
+      <BackToTopButton v-if="displayMode === 'expanded'" :threshold="320" />
     </template>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import { emailsApi } from '@/api/modules/emails'
+import BackToTopButton from '@/components/BackToTopButton.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import ErrorState from '@/components/ErrorState.vue'
 import LoadingState from '@/components/LoadingState.vue'
@@ -81,6 +86,7 @@ import type { EmailDetail } from '@/types/api'
 import { formatDateTime } from '@/utils/format'
 
 const route = useRoute()
+const router = useRouter()
 const loading = ref(true)
 const error = ref<string | null>(null)
 const email = ref<EmailDetail | null>(null)
@@ -100,6 +106,14 @@ const contentClass = computed(() =>
     : '',
 )
 const wrappedHtmlBody = computed(() => buildEmailShell(sanitizeHtmlForDisplay(email.value?.body_html || '<p>--</p>')))
+
+async function goBack(): Promise<void> {
+  if (window.history.length > 1) {
+    await router.back()
+    return
+  }
+  await router.push('/emails')
+}
 
 async function load(): Promise<void> {
   loading.value = true

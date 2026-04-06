@@ -4,7 +4,7 @@
       <div class="hero-orb hero-orb-a"></div>
       <div class="hero-orb hero-orb-b"></div>
       <div class="hero-orb hero-orb-c"></div>
-      <div class="panel-body relative">
+      <div class="panel-body relative z-[1]">
         <div class="max-w-3xl">
           <!-- <p class="page-eyebrow">Usage Guide</p>
           <h1 class="page-title">使用指南</h1> -->
@@ -22,7 +22,21 @@
             当前模块
             <span class="font-semibold">{{ activeStage.title }}</span>
           </div>
-          <button class="btn-secondary" type="button" @click="replayAnimation">重新播放</button>
+          <button
+            class="btn-secondary"
+            type="button"
+            @click="isAutoPlaying ? replayAnimation() : resumeAnimation()"
+          >
+            {{ isAutoPlaying ? '重新播放' : '继续播放' }}
+          </button>
+          <button
+            v-if="!isAutoPlaying"
+            class="btn-secondary"
+            type="button"
+            @click="replayAnimation"
+          >
+            从头播放
+          </button>
         </div>
       </div>
     </div>
@@ -41,8 +55,13 @@
         <div class="panel-body">
           <div class="playback-shell">
             <div class="flex flex-wrap items-center justify-between gap-3">
-              <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">自动轮播 / 点击卡片可切换</div>
-              <div class="text-sm text-slate-500">当前已播放到第 {{ activeStageIndex + 1 }} 步</div>
+              <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                {{ isAutoPlaying ? '自动轮播中 / 点击卡片可暂停' : '已暂停 / 点击卡片可查看细节' }}
+              </div>
+              <div class="text-sm text-slate-500">
+                当前定位在第 {{ activeStageIndex + 1 }} 步
+                <span v-if="!isAutoPlaying"> · 已暂停自动轮播</span>
+              </div>
             </div>
             <div class="playback-bar mt-4">
               <div class="playback-fill" :style="{ width: `${progressPercent}%` }"></div>
@@ -241,10 +260,13 @@
       </div>
     </div>
   </section>
+  <BackToTopButton />
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+
+import BackToTopButton from '@/components/BackToTopButton.vue'
 
 type AnalyzerGuideStage = {
   id: string
@@ -461,6 +483,7 @@ const guideCards = [
 ]
 
 const activeStageIndex = ref(0)
+const isAutoPlaying = ref(true)
 const activeStage = computed(() => analyzerStages[activeStageIndex.value])
 const progressPercent = computed(() => ((activeStageIndex.value + 1) / analyzerStages.length) * 100)
 
@@ -468,7 +491,7 @@ let animationTimer: number | null = null
 
 function setStage(index: number): void {
   activeStageIndex.value = index
-  startAnimationLoop()
+  pauseAnimationLoop()
 }
 
 function replayAnimation(): void {
@@ -476,11 +499,21 @@ function replayAnimation(): void {
   startAnimationLoop()
 }
 
+function resumeAnimation(): void {
+  startAnimationLoop()
+}
+
 function startAnimationLoop(): void {
   stopAnimationLoop()
+  isAutoPlaying.value = true
   animationTimer = window.setInterval(() => {
     activeStageIndex.value = (activeStageIndex.value + 1) % analyzerStages.length
   }, 1900)
+}
+
+function pauseAnimationLoop(): void {
+  stopAnimationLoop()
+  isAutoPlaying.value = false
 }
 
 function stopAnimationLoop(): void {
@@ -518,6 +551,7 @@ onBeforeUnmount(() => {
   background-size: 28px 28px;
   content: "";
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.75), transparent);
+  pointer-events: none;
 }
 
 .hero-orb {

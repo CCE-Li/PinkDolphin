@@ -3,30 +3,33 @@
     <LoadingState v-if="loading" message="正在加载处置记录..." />
     <ErrorState v-else-if="error" :message="error" @retry="load" />
     <EmptyState v-else-if="!items.length" title="没有处置记录" description="当前没有处置相关审计记录。" />
-    <div v-else class="table-shell">
-      <table class="table-base">
-        <thead>
-          <tr>
-            <th>处置人</th>
-            <th>处置动作</th>
-            <th>事件类型</th>
-            <th>处置时间</th>
-            <th>处置对象</th>
-            <th>备注</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in items" :key="item.id">
-            <td>{{ item.actor }}</td>
-            <td>{{ item.message }}</td>
-            <td>{{ eventTypeLabel(item.event_type) }}</td>
-            <td>{{ formatDateTime(item.created_at) }}</td>
-            <td>{{ item.resource_type }} / {{ item.resource_id }}</td>
-            <td class="max-w-md text-slate-400">{{ JSON.stringify(item.details) }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <template v-else>
+      <div class="table-shell">
+        <table class="table-base">
+          <thead>
+            <tr>
+              <th>处置人</th>
+              <th>处置动作</th>
+              <th>事件类型</th>
+              <th>处置时间</th>
+              <th>处置对象</th>
+              <th>备注</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in items" :key="item.id">
+              <td>{{ item.actor }}</td>
+              <td>{{ item.message }}</td>
+              <td>{{ eventTypeLabel(item.event_type) }}</td>
+              <td>{{ formatDateTime(item.created_at) }}</td>
+              <td>{{ item.resource_type }} / {{ item.resource_id }}</td>
+              <td class="max-w-md text-slate-400">{{ JSON.stringify(item.details) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <BackToTopButton />
+    </template>
   </section>
 </template>
 
@@ -34,6 +37,7 @@
 import { computed, onMounted, ref } from 'vue'
 
 import { auditApi } from '@/api/modules/audit'
+import BackToTopButton from '@/components/BackToTopButton.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import ErrorState from '@/components/ErrorState.vue'
 import LoadingState from '@/components/LoadingState.vue'
