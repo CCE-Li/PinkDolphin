@@ -12,8 +12,6 @@ Thumbs.db
 !.env.example
 !backend/.env.example
 !frontend/.env.example
-!frontend/.vite.config.ts
-!frontend/src/api/baseUrl.ts
 
 # Python
 __pycache__/
